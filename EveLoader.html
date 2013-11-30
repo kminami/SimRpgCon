@@ -21,61 +21,69 @@
 
 var Util = {};
 
-Util.ajax = function(file, callback, error_hundler) {
+Util.ajax = function(file, callback, error_callback) {
+  var xhr;
   if (window.ActiveXObject) {
-    var xhr = new ActiveXObject("Msxml2.XMLHTTP");
+    xhr = new ActiveXObject("Msxml2.XMLHTTP");
   } else {
-    var xhr = new XMLHttpRequest();
+    xhr = new XMLHttpRequest();
     xhr.overrideMimeType("text/plain; charset=Shift_JIS"); // Firefox only
   }
   xhr.onreadystatechange = function() {
-    if (xhr.readyState == 4) {
-      if (xhr.status == 0 || xhr.status == 200) {
+    if (xhr.readyState === 4) {
+      if (xhr.status === 0 || xhr.status === 200) {
         callback(xhr.responseText); // success
-      } else {
-        if (error_hundler != undefined) {
-          error_hundler(); // error
-        } else if (xhr.status == 3) { // for IE
-          alert("指定されたリソースは見つかりません。\n(status = " + xhr.status + ")");
-        } else {
-          alert("status = " + xhr.status);
-        }
+        return;
       }
+      if (typeof error_callback === "function") {
+        error_callback(); // error
+        return;
+      }
+      if (xhr.status === 3) { // for IE
+        alert("指定されたリソースは見つかりません。\n(status = " + xhr.status + ")");
+        return;
+      }
+      alert("status = " + xhr.status);
     }
   }
   xhr.open("GET", file);
   try {
     xhr.send();
   } catch (e) {
-    if (error_hundler != undefined) error_hundler();
+    if (typeof error_callback === "function") {
+      error_callback();
+    }
   }
 }
 
 Util.createDialog = function(q, a, callback) {
-  var window = document.createElement("div");
-  window.style.width = "428px";
-  window.style.height = "118px";
-  window.style.padding = "5px";
-  window.style.border = "solid 1px";
-  window.style.background = "white";
-  window.style.position = "absolute";
-  window.style.left = "84px";
-  window.style.top = "530px";
+  var dialog = document.createElement("div");
+  dialog.style.width = "428px";
+  dialog.style.height = "118px";
+  dialog.style.padding = "5px";
+  dialog.style.border = "solid 1px";
+  dialog.style.background = "white";
+  dialog.style.position = "absolute";
+  dialog.style.left = "84px";
+  dialog.style.top = "530px";
   var q_span = document.createElement("span");
   q_span.innerHTML = q;
-  window.appendChild(q_span);
-  window.appendChild( document.createElement("br") );
+  dialog.appendChild(q_span);
+  dialog.appendChild( document.createElement("br") );
+  function closeDialog(answer) {
+    return function() {
+      document.body.removeChild(dialog);
+      callback(answer);
+    }
+  }
   for (var i = 0; i < a.length; i++) {
     var a_button = document.createElement("button");
     a_button.innerHTML = a[i];
-    var closeDialog = function(a) {
-      return function() { document.body.removeChild(window); callback(a); }
-    }
     a_button.onclick = closeDialog(i+1);
-    window.appendChild( a_button );
-    window.appendChild( document.createElement("br") );
+    dialog.appendChild( a_button );
+    dialog.appendChild( document.createElement("br") );
   }
-  document.body.appendChild(window);
+  document.body.appendChild(dialog);
 }
 
 var MapLoader = {};
@@ -107,40 +115,41 @@ MapLoader.mapType = {
 };
 
 MapLoader.open = function(path, file, callback) {
-  MapLoader.clear();
+  var self = this;
+  self.clear();
   Util.ajax(path+file, function(data) {
-    MapLoader.parseMapData( data.split("\r\n"), path );
-    MapLoader.loaded = true;
-    if (callback != undefined) {
+    self.parseMapData( data.split("\r\n"), path );
+    self.loaded = true;
+    if (typeof callback === "function") {
       callback();
     }
   }, function() {
-    if (callback != undefined) {
+    if (typeof callback === "function") {
       callback();
     }
   });
 }
 
 MapLoader.parseMapData = function(data, path) {
-  if (data[0] != '"MapData"') {
+  if (data[0] !== '"MapData"') {
     alert("invalid map file.");
     return;
   }
-  MapLoader.height = data[2].split(",")[0];
-  MapLoader.width = data[2].split(",")[1];
+  this.height = data[2].split(",")[0];
+  this.width = data[2].split(",")[1];
 
-  for (var x = 0; x < MapLoader.width; x++) {
-    for (var y = 0; y < MapLoader.height; y++) {
-      MapLoader.putMapChip( x, y, data[3+MapLoader.height*x+y].split(","), path );
+  for (var x = 0; x < this.width; x++) {
+    for (var y = 0; y < this.height; y++) {
+      this.putMapChip(x, y, data[3+this.height*x+y].split(","), path);
     }
   }
 }
 
-MapLoader.putMapChip = function( x, y, data, path ) {
+MapLoader.putMapChip = function(x, y, data, path) {
   var type = data[0];
   var num = data[1];
   var src;
-  if(MapLoader.mapType[type] == undefined) {
+  if(!this.mapType.hasOwnProperty(type)) {
     alert("unknown map type: " + type);
     return;
   }
@@ -153,7 +162,7 @@ MapLoader.putMapChip = function( x, y, data, path ) {
     } else if(num < 1000) {
       num = "-0" + num;
     }
-    src = path + "bitmap/Map/" + MapLoader.mapType[type] + num + ".bmp";
+    src = path + "bitmap/Map/" + this.mapType[type] + num + ".bmp";
   } else {
     if (num < 10) {
       num = "000" + num;
@@ -162,7 +171,7 @@ MapLoader.putMapChip = function( x, y, data, path ) {
     } else if(num < 1000) {
       num = "0" + num;
     }
-    src = MapLoader.defaultPath + MapLoader.mapType[type] + "/" + MapLoader.mapType[type] + num + ".bmp";
+    src = this.defaultPath + this.mapType[type] + "/" + this.mapType[type] + num + ".bmp";
   }
   var img = document.createElement("img");
   img.src = src;
@@ -173,13 +182,14 @@ MapLoader.putMapChip = function( x, y, data, path ) {
 }
 
 MapLoader.center = function(x,y) {
-  document.getElementById("map").scrollLeft = 32*(x-8);
-  document.getElementById("map").scrollTop = 32*(y-8);
+  var map = document.getElementById("map");
+  map.scrollLeft = 32*(x-8);
+  map.scrollTop = 32*(y-8);
 }
 
 MapLoader.clear = function() {
   document.getElementById("map").innerHTML = "";
-  MapLoader.loaded = false;
+  this.loaded = false;
 }
 
 var EveLoader = {};
@@ -197,58 +207,62 @@ EveLoader.flags = {};
 EveLoader.vars = {};
 
 EveLoader.initialize = function() {
-  EveLoader.events = [];
-  EveLoader.units = {};
-  EveLoader.currentEvent = -1;
-  EveLoader.eveLine = 0;
-  EveLoader.eveContext = 0;
-  EveLoader.eveNest = [ {type:"Root",context:0} ]; // ダミー
-  EveLoader.flags = {};
-  EveLoader.vars = {};
+  this.events = [];
+  this.units = {};
+  this.currentEvent = -1;
+  this.eveLine = 0;
+  this.eveContext = 0;
+  this.eveNest = [ {type:"Root",context:0} ]; // ダミー
+  this.flags = {};
+  this.vars = {};
 }
 
 EveLoader.open = function(file) {
-  EveLoader.initialize();
+  var self = this;
+  self.initialize();
   Util.ajax(file, function(data) {
-    EveLoader.eveData = data.split("\r\n");
+    self.eveData = data.split("\r\n");
     var text = file.match(/^(.*\/)([^\/]*)\.eve/);
-    EveLoader.evePath = text[1];
-    EveLoader.eveName = text[2];
-    EveLoader.parseEveData();
+    self.evePath = text[1];
+    self.eveName = text[2];
+    self.parseEveData();
   });
 }
 
 EveLoader.parseEveData = function() {
+  var self = this;
   var text;
-  for (var i = EveLoader.eveLine; i < EveLoader.eveData.length; i++) {
-    if ( EveLoader.eveData[i].length > 0 && EveLoader.eveData[i][0] != "#") {
-      if( text = EveLoader.eveData[i].match(/(.*):$/) ) {
+  for (var i = self.eveLine; i < self.eveData.length; i++) {
+    if ( self.eveData[i].length > 0 && self.eveData[i][0] !== "#") {
+      if( text = self.eveData[i].match(/(.*):$/) ) {
         // ラベル行
-        EveLoader.events.push( new EveLoader.EventData(text[1],i+1) );
-      } else if( text = EveLoader.eveData[i].match(/^@(.*)/) ) {
+        self.events.push( new self.EventData(text[1],i+1) );
+      } else if( text = self.eveData[i].match(/^@(.*)/) ) {
         // ロード行
         console.log("データロード：" + text[1]);
-        EveLoader.eveLine = i+1;
-        DataLoader.open(EveLoader.evePath + "data/" + text[1] + "/", EveLoader.parseEveData );
+        self.eveLine = i+1;
+        DataLoader.open(self.evePath + "data/" + text[1] + "/", function() {
+          self.parseEveData();
+        });
         return;
       }
     }
   }
   var select = "";
-  for (var i=0; i<EveLoader.events.length; i++) {
-    select += '<option ondblclick="EveLoader.launch(this.value)">' + EveLoader.events[i].name + "</option>"
+  for (var i=0; i<self.events.length; i++) {
+    select += '<option ondblclick="EveLoader.launch(this.value)">' + self.events[i].name + "</option>"
   }
   document.getElementById("event_list").innerHTML = select;
-  EveLoader.launch("プロローグ");
+  self.launch("プロローグ");
 }
 
 EveLoader.launch = function(name) {
-  for (var i=0; i < EveLoader.events.length; i++) {
-    if (EveLoader.events[i].name == name) {
-      EveLoader.currentEvent = i;
-      EveLoader.eveContext = 0;
-      EveLoader.eveLine = EveLoader.events[i].begin;
-      EveLoader.execEvent();
+  for (var i=0; i < this.events.length; i++) {
+    if (this.events[i].name === name) {
+      this.currentEvent = i;
+      this.eveContext = 0;
+      this.eveLine = this.events[i].begin;
+      this.execEvent();
       return;
     }
   }
@@ -256,68 +270,69 @@ EveLoader.launch = function(name) {
 }
 
 EveLoader.execEvent = function() {
-  var data = EveLoader.eveData;
-  var line = EveLoader.eveLine;
-  var context = EveLoader.eveContext; // 0:通常、1:Talk中(システム)、2:Talk中(キャラ)、3:If/Switch中(調査中)、4:If/Switch中(不一致)
+  var self = this;
+  var data = self.eveData;
+  var line = self.eveLine;
+  var context = self.eveContext; // 0:通常、1:Talk中(システム)、2:Talk中(キャラ)、3:If/Switch中(調査中)、4:If/Switch中(不一致)
   var text;
   var switch_value;
   for (var i = line; i < data.length; i++) {
-    if ( data[i].length == 0 || data[i][0] == "#" ) {
+    if ( data[i].length === 0 || data[i][0] === "#" ) {
       // 空行またはコメント行
-    } else if ( EveLoader.eveNest[0].type == "Switch" && (text = data[i].match(/^[ \t]*Case (.*)/)) ) {
+    } else if ( self.eveNest[0].type === "Switch" && (text = data[i].match(/^[ \t]*Case (.*)/)) ) {
       // Case行（Switchの中）
-      if (context == 0 || context == 4) {
+      if (context === 0 || context === 4) {
         context = 4;
-      } else if (switch_value == text[1]) {
+      } else if (switch_value === text[1]) {
         context = 0;
       }
-    } else if ( EveLoader.eveNest[0].type == "Switch" && data[i].match(/^[ \t]*EndSw/) ) {
+    } else if ( self.eveNest[0].type === "Switch" && data[i].match(/^[ \t]*EndSw/) ) {
       // EndSw行（Switchの中）
-      EveLoader.eveNest.shift();
+      self.eveNest.shift();
       context = 0;
     } else if ( text = data[i].match(/^[ \t]*If (.*) Then/) ) {
       // If Then行
-      EveLoader.eveNest.unshift( {type:"If",context:context} );
-      if ( context == 3 ) {
+      self.eveNest.unshift( {type:"If",context:context} );
+      if ( context === 3 ) {
         context = 4;
-      } else if ( context != 3 && EveLoader.evalIf(text[1]) ) {
+      } else if ( context !== 3 && self.evalIf(text[1]) ) {
         context = 0;
       } else {
         context = 3;
       }
-    } else if ( EveLoader.eveNest[0].type == "If" && (text = data[i].match(/^[ \t]*Elseif (.*) Then/)) ) {
+    } else if ( self.eveNest[0].type === "If" && (text = data[i].match(/^[ \t]*Elseif (.*) Then/)) ) {
       // Elseif行（Ifの中）
-      //if (EveLoader.evalIf(text[1])) {
-      if (context == 0 || context == 4) {
+      //if (self.evalIf(text[1])) {
+      if (context === 0 || context === 4) {
         context = 4;
-      } else if ( EveLoader.evalIf(text[1]) ) {
+      } else if ( self.evalIf(text[1]) ) {
         context = 0;
       }
-    } else if ( EveLoader.eveNest[0].type == "If" && (text = data[i].match(/^[ \t]*Else/)) ) {
+    } else if ( self.eveNest[0].type === "If" && (text = data[i].match(/^[ \t]*Else/)) ) {
       // Else行（Ifの中）
-      if (context == 0 || context == 4) {
+      if (context === 0 || context === 4) {
         context = 4;
       } else {
         context = 0;
       }
-    } else if ( EveLoader.eveNest[0].type == "If" && (data[i].match(/^[ \t]*Endif/i)) ) {
+    } else if ( self.eveNest[0].type === "If" && (data[i].match(/^[ \t]*Endif/i)) ) {
       // EndIf行（Ifの中）
-      context = EveLoader.eveNest[0].context;
-      EveLoader.eveNest.shift();
+      context = self.eveNest[0].context;
+      self.eveNest.shift();
     } else if ( context > 2 ) {
       // 条件を満たしていないので素通りする行
       //console.log(i + ", context=" + context);
     } else if ( text = data[i].match(/^[ \t]*Talk ([^ ]*)/) ) {
       // Talk行
-      if (text[1] == "システム") { // システム
+      if (text[1] === "システム") { // システム
         document.getElementById("name").innerHTML = "";
         document.getElementById("message").innerHTML = data[i].replace(/;/g,"<br />").trim();
         document.getElementById("icon").style.display = "none";
         context = 1;
-      } else if (DataLoader.pilots[ text[1] ] != undefined) { // キャラクタ
+      } else if (DataLoader.pilots.hasOwnProperty(text[1])) { // キャラクタ
         document.getElementById("name").innerHTML = DataLoader.pilots[ text[1] ].talk_name;
         var icon_img = document.getElementById("icon");
-        icon_img.src = EveLoader.evePath + "bitmap/pilot/" + DataLoader.pilots[ text[1] ].icon;
+        icon_img.src = self.evePath + "bitmap/pilot/" + DataLoader.pilots[ text[1] ].icon;
         icon_img.style.display = "block";
         context = 2;
       } else { // データのないキャラクタ（通らないはず）
@@ -332,38 +347,42 @@ EveLoader.execEvent = function() {
     } else if ( data[i].match(/^[ \t]*Suspend/i) ) {
       // Suspend行（Talkに対応）
       context = 0;
-    } else if (context == 1) {
+    } else if (context === 1) {
       // システムのメッセージ本文
       document.getElementById("message").innerHTML = data[i].replace(/;/g,"<br />").trim();
-      document.getElementById("talk").onclick = function() { EveLoader.execEvent() };
-      EveLoader.eveLine = i+1;
-      EveLoader.eveContext = context;
+      document.getElementById("talk").onclick = function() {
+        self.execEvent()
+      };
+      self.eveLine = i+1;
+      self.eveContext = context;
       return;
-    } else if (context == 2) {
+    } else if (context === 2) {
       // キャラクタのメッセージ本文
       document.getElementById("message").innerHTML = "「" + data[i].replace(/;/g,"<br />").trim() + "」";
-      document.getElementById("talk").onclick = function() { EveLoader.execEvent() };
-      EveLoader.eveLine = i+1;
-      EveLoader.eveContext = context;
+      document.getElementById("talk").onclick = function() {
+        self.execEvent()
+      };
+      self.eveLine = i+1;
+      self.eveContext = context;
       return;
     } else if( data[i].match(/^Exit/) ) {
       // Exit行（イベント終了）
-      if (EveLoader.events[EveLoader.currentEvent].name == "プロローグ") {
+      if (self.events[self.currentEvent].name === "プロローグ") {
         if (MapLoader.loaded) {
-          EveLoader.launch("スタート");
+          self.launch("スタート");
         } else {
-          MapLoader.open( EveLoader.evePath, EveLoader.eveName + ".map", function() {
-            EveLoader.launch("スタート");
+          MapLoader.open( self.evePath, self.eveName + ".map", function() {
+            self.launch("スタート");
           });
-          EveLoader.eveContext = context; // ?
+          self.eveContext = context; // ?
         }
         return;
-      } else if (EveLoader.events[EveLoader.currentEvent].name == "エピローグ") {
-        EveLoader.open( EveLoader.evePath + EveLoader.eveName );
+      } else if (self.events[self.currentEvent].name === "エピローグ") {
+        self.open( self.evePath + self.eveName );
         return;
       } else {
-        EveLoader.eveLine = i; // Exit行で留める（仮）
-        EveLoader.eveContext = context;
+        self.eveLine = i; // Exit行で留める（仮）
+        self.eveContext = context;
         document.getElementById("name").innerHTML = "";
         document.getElementById("message").innerHTML = "";
         document.getElementById("icon").style.display = "none";
@@ -372,8 +391,8 @@ EveLoader.execEvent = function() {
     } else if ( text = data[i].match(/^Continue (.*)/) ) {
       // Continue行（次のシナリオへ）
       MapLoader.clear();
-      EveLoader.eveName = text[1];
-      EveLoader.launch("エピローグ");
+      self.eveName = text[1];
+      self.launch("エピローグ");
       return;
     } else if ( data[i].match(/^[ \t]*GameClear/) ) {
       // GameClear行
@@ -381,24 +400,24 @@ EveLoader.execEvent = function() {
       return;
     } else if ( text = data[i].match(/^[ \t]*Switch (.*)\((.*)\)/) ) {
       // Switch行
-      if (text[1] == "Status") {
-        switch_value = EveLoader.units[ text[2] ].status;
-      } else if (text[1] == "Unit") {
-        if (text[2] in EveLoader.units) {
-          switch_value = EveLoader.units[ text[2] ].name;
+      if (text[1] === "Status") {
+        switch_value = self.units[ text[2] ].status;
+      } else if (text[1] === "Unit") {
+        if (text[2] in self.units) {
+          switch_value = self.units[ text[2] ].name;
         } else {
           switch_value = "";
         }
       }
       context = 3;
-      EveLoader.eveNest.unshift( {type:"Switch",context:context} );
+      self.eveNest.unshift( {type:"Switch",context:context} );
     } else if ( text = data[i].match(/^[ \t]*Set (.*)/) ) {
       // Set行
-      EveLoader.flags[ text[1] ] = true;
+      self.flags[ text[1] ] = true;
     } else if ( text = data[i].match(/^[ \t]*Ask (.*)/) ) {
       // Ask行
       var q = text[1].split(" ")[0];
-      if ( q == "終了") continue;
+      if ( q === "終了") continue;
       var a = Array();
       i++;
       while ( !data[i].match(/^[ \t]*End/) ) {
@@ -406,19 +425,19 @@ EveLoader.execEvent = function() {
       	i++;
       }
       Util.createDialog( q, a, function(select) {
-        EveLoader.vars[ "選択" ] = select;
-        EveLoader.execEvent();
+        self.vars[ "選択" ] = "" + select;
+        self.execEvent();
       });
       document.getElementById("talk").onclick = null;
-      EveLoader.eveLine = i+1;
-      EveLoader.eveContext = context;
+      self.eveLine = i+1;
+      self.eveContext = context;
       return;
     } else if ( text = data[i].match(/^[ \t]*ChangeMap (.*)/i) ) {
       // ChangeMap行
-      EveLoader.eveLine = i+1;
-      EveLoader.eveContext = context;
-      MapLoader.open( EveLoader.evePath, text[1].replace("\\","/"), function() {
-        EveLoader.execEvent();
+      self.eveLine = i+1;
+      self.eveContext = context;
+      MapLoader.open( self.evePath, text[1].replace("\\","/"), function() {
+        self.execEvent();
       });
       return;
     } else if ( text = data[i].match(/^[ \t]*Center (.*) (.*)/) ) {
@@ -438,26 +457,28 @@ EveLoader.execEvent = function() {
       // Wait行
       console.log("Wait " + text[1]);
       document.getElementById("talk").onclick = null;
-      EveLoader.eveLine = i+1;
-      EveLoader.eveContext = context;
-      setTimeout(EveLoader.execEvent, text[1]*100);
+      self.eveLine = i+1;
+      self.eveContext = context;
+      setTimeout(function() {
+        self.execEvent();
+      }, text[1]*100);
       return;
     } else if ( text = data[i].match(/^[ \t]*Move (.*)/) ) {
       // Move行
       var split_text = text[1].split(" ");
       console.log("Move " + split_text[0] + " " + split_text[1] + " " + split_text[2]);
-      EveLoader.units[ split_text[0] ].move(split_text[1], split_text[2]);
+      self.units[ split_text[0] ].move(split_text[1], split_text[2]);
     } else if ( text = data[i].match(/^[ \t]*Create ([^ ]+) ([^ ]+) (\d+) ([^ ]+) (\d+) (\d+) (\d+)/) ) {
       // Create行（1:味方or敵, 2:ユニット名, 3:改造ランク？, 4:パイロット, 5:レベル, 6:X, 7:Y）
       var x = parseInt(text[6]), y = parseInt(text[7]);
-      if (EveLoader.checkUnit(x,y) == false) {
-        if (EveLoader.checkUnit(x-1,y) == true) {
+      if (self.checkUnit(x,y) === false) {
+        if (self.checkUnit(x-1,y) === true) {
           x--;
-        } else if (EveLoader.checkUnit(x,y-1) == true) {
+        } else if (self.checkUnit(x,y-1) === true) {
           y--;
-        } else if (EveLoader.checkUnit(x+1,y) == true) {
+        } else if (self.checkUnit(x+1,y) === true) {
           x++;
-        } else if (EveLoader.checkUnit(x,y+1) == true) {
+        } else if (self.checkUnit(x,y+1) === true) {
           y++;
         } else {
           alert("ユニットが設置できませんでした。(" + x + "," + y + ")");
@@ -465,8 +486,8 @@ EveLoader.execEvent = function() {
         }
       }
       var img = document.createElement("img");
-      img.src = EveLoader.evePath + "bitmap/unit/" + DataLoader.robots[ text[2] ].icon;
-      if (text[1] == "味方") {
+      img.src = self.evePath + "bitmap/unit/" + DataLoader.robots[ text[2] ].icon;
+      if (text[1] === "味方") {
         img.className = "unit mikata";
       } else {
         img.className = "unit teki";
@@ -474,9 +495,11 @@ EveLoader.execEvent = function() {
       img.style.left = ((x-1)*32-1) + "px";
       img.style.top = ((y-1)*32-1) + "px";
       document.getElementById("map").appendChild(img);
-      EveLoader.units[ text[4] ] = new EveLoader.Unit(text, x, y, img);
+      self.units[ text[4] ] = new self.Unit(text, x, y, img);
       img.pilot = text[4];
-      img.onmouseover = function() { EveLoader.showInfo( this.pilot ); }
+      img.onmouseover = function() {
+        self.showInfo( this.pilot );
+      }
     }
   }
 }
@@ -484,22 +507,24 @@ EveLoader.execEvent = function() {
 EveLoader.evalIf = function(text) {
   var split_text = text.split(" ");
   var not = false;
-  if ( split_text.length == 3) {
+  if (split_text.length === 3) {
     console.log(split_text);
-    if ( split_text[0] in EveLoader.vars && split_text[1] == '=' && EveLoader.vars[split_text[0]] == split_text[2]) {
+    if (this.vars.hasOwnProperty(split_text[0])
+        && split_text[1] === '='
+        && this.vars[split_text[0]] === split_text[2]) {
       return true;
     } else {
       return false;
     }
   }
-  if ( split_text.length > 1 && split_text[0] == "Not") {
+  if ( split_text.length > 1 && split_text[0] === "Not") {
     not = true;
     text = split_text.slice(1).join(" ");
   }
   console.log(not + ", " + text);
-  if ( text in EveLoader.flags ) { // フラグをチェック
+  if (this.flags.hasOwnProperty(text)) { // フラグをチェック
     return !not;
-  } else if ( text in EveLoader.units ) { // ユニットをチェック
+  } else if (this.units.hasOwnProperty(text)) { // ユニットをチェック
     return !not;
   } else {
     return not;
@@ -512,8 +537,8 @@ EveLoader.checkUnit = function(x,y) {
     console.log("1: " + x + "," + y);
     return false;
   }
-  for (var pilot in EveLoader.units) {
-    if(EveLoader.units[pilot].x == x && EveLoader.units[pilot].y == y) {
+  for (var pilot in this.units) {
+    if(this.units[pilot].x === x && this.units[pilot].y === y) {
       console.log("2: " + x + "," + y);
       return false;
     }
@@ -522,12 +547,12 @@ EveLoader.checkUnit = function(x,y) {
 }
 
 EveLoader.showInfo = function(pilot) {
-  var unit = EveLoader.units[pilot];
+  var unit = this.units[pilot];
   var img = document.getElementById("info_icon");
-  img.src = EveLoader.evePath + "bitmap/pilot/" + DataLoader.pilots[ pilot ].icon;
+  img.src = this.evePath + "bitmap/pilot/" + DataLoader.pilots[ pilot ].icon;
   img.style.display = "block";
   var info_pilot = DataLoader.pilots[ pilot ].talk_name + "<br />";
-  info_pilot += '<span class="blue">レベル</span> ' + unit.level + (unit.belong == "味方" ? " (0)" : "") + "<br />";
+  info_pilot += '<span class="blue">レベル</span> ' + unit.level + (unit.belong === "味方" ? " (0)" : "") + "<br />";
   info_pilot += '<span class="blue">気力</span> ' + "100 (" + DataLoader.pilots[ pilot ].tsuyoki + ")<br />";
   info_pilot += '<span class="blue">ＳＰ</span> ' + "100/100";
   document.getElementById("info_pilot").innerHTML = info_pilot;
@@ -591,21 +616,22 @@ DataLoader.pilots = {};
 DataLoader.robots = {};
 
 DataLoader.open = function(dir, callback) {
+  var self = this;
   function getRobot() {
     Util.ajax(dir + "robot.txt", function(data) { // robot.txt success
-      DataLoader.parseRobotData( data.split("\r\n") );
+      self.parseRobotData( data.split("\r\n") );
       callback();
     }, function() { // robot.txt error
       Util.ajax(dir + "Robot.txt", function(data) {
-        DataLoader.parseRobotData( data.split("\r\n") );
+        self.parseRobotData( data.split("\r\n") );
         callback();
       });
     });
   }
   Util.ajax(dir + "Pilot.txt", function(data) {
-    DataLoader.parsePilotData( data.split("\r\n") );
+    self.parsePilotData( data.split("\r\n") );
     Util.ajax(dir + "non_pilot.txt", function(data) { // non_pilot.txt success
-      DataLoader.parseNonPilotData( data.split("\r\n") );
+      self.parseNonPilotData( data.split("\r\n") );
       getRobot();
     }, function() { // non_pilot.txt error
       getRobot();
@@ -616,12 +642,12 @@ DataLoader.open = function(dir, callback) {
 DataLoader.parsePilotData = function(data) {
   var begin = 0, end = 0, current_name = "";
   for (var i = 0; i < data.length; i++) {
-    if (data[i].length > 0 && data[i][0] != "#") {
+    if (data[i].length > 0 && data[i][0] !== "#") {
       begin = i;
       current_name = data[i];
       for (;i < data.length && data[i].length > 0; i++);
       end = i;
-      DataLoader.pilots[ current_name ] = new DataLoader.PilotData(data, begin, end);
+      this.pilots[ current_name ] = new this.PilotData(data, begin, end);
     }
   }
 }
@@ -629,12 +655,12 @@ DataLoader.parsePilotData = function(data) {
 DataLoader.parseNonPilotData = function(data) {
   var begin = 0, end = 0, current_name = "";
   for (var i = 0; i < data.length; i++) {
-    if (data[i].length > 0 && data[i][0] != "#") {
+    if (data[i].length > 0 && data[i][0] !== "#") {
       begin = i;
       current_name = data[i];
       for (;i < data.length && data[i].length > 0; i++);
       end = i;
-      DataLoader.pilots[ current_name ] = new DataLoader.NonPilotData(data, begin, end);
+      this.pilots[ current_name ] = new this.NonPilotData(data, begin, end);
     }
   }
 }
@@ -642,12 +668,12 @@ DataLoader.parseNonPilotData = function(data) {
 DataLoader.parseRobotData = function(data) {
   var begin = 0, end = 0, current_name = "";
   for (var i = 0; i < data.length; i++) {
-    if (data[i].length > 0 && data[i][0] != "#") {
+    if (data[i].length > 0 && data[i][0] !== "#") {
       begin = i;
       current_name = data[i];
       for (;i < data.length && data[i].length > 0; i++);
       end = i;
-      DataLoader.robots[ current_name ] = new DataLoader.RobotData(data, begin, end);
+      this.robots[ current_name ] = new this.RobotData(data, begin, end);
     }
   }
 }
@@ -663,7 +689,7 @@ DataLoader.PilotData = function(data, begin, end) {
   this.hp = temp[5].trim(); // ?
   var c = 0;
   this.ability = [];
-  if (data[begin+2] == "特殊能力") { // 特殊能力あり
+  if (data[begin+2] === "特殊能力") { // 特殊能力あり
     for (; data[begin+c+3].match(/^[^\d]/); c++) {
       this.ability.push( new DataLoader.Ability(data[begin+c+3].split(",")) );
     }
@@ -680,7 +706,7 @@ DataLoader.PilotData = function(data, begin, end) {
   temp = data[begin+c+5].split(","); // 関連ファイル
   this.icon = temp[0];
   this.bgm = temp[1].trim();
-  if (begin+c+6 < end && data[begin+c+6] == "===") {
+  if (begin+c+6 < end && data[begin+c+6] === "===") {
     for (var i=0; begin+c+7+i < end; i++) { // ユニット用特殊能力
     }
   }
@@ -698,7 +724,7 @@ DataLoader.Ability = function(data) {
   }
   this.param = st[1];
   this.isVisible = function(level) {
-    if (level > parseInt(data[1]) && this.param != "非表示" && this.name != "ダミー特殊能力") {
+    if (level > parseInt(data[1]) && this.param !== "非表示" && this.name !== "ダミー特殊能力") {
       return true;
     } else {
       return false;
@@ -737,7 +763,7 @@ DataLoader.RobotData = function(data, begin, end) {
   this.move = temp[1].trim();
   this.size = temp[2].trim();
   var c = 0;
-  if (data[begin+3] == "特殊能力") { // 特殊能力あり
+  if (data[begin+3] === "特殊能力") { // 特殊能力あり
     for (; data[begin+c+4].match(/^[^\d]/); c++) {
     }
   }
@@ -758,7 +784,7 @@ EveLoader.Sound = {};
 EveLoader.Sound.defaultPath = "Sound/";
 
 EveLoader.Sound.play = function(name) {
-  var audio = new Audio(EveLoader.Sound.defaultPath + name);
+  var audio = new Audio(this.defaultPath + name);
   audio.play();
 }
 
