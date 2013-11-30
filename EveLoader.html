@@ -1,8 +1,5 @@
-<html>
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=Shift_JIS" />
-<title>EveLoader</title>
-<script>
+<!DOCTYPE html>
+<!--
 /* 
  *  EveLoader 0.1.1
  * 
@@ -10,9 +7,20 @@
  * 
  *  Copyright (c) 2011-2013 Nang
  * 
- *  available under the GNU General Public License version 2.
+ *  Available under the GNU General Public License version 2 (GPLv2)
  */
+-->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=Shift_JIS" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black" />
+<title>EveLoader</title>
+<script>
+"use strict";
+
 var Util = {};
+
 Util.ajax = function(file, callback, error_hundler) {
   if (window.ActiveXObject) {
     var xhr = new ActiveXObject("Msxml2.XMLHTTP");
@@ -69,9 +77,9 @@ Util.createDialog = function(q, a, callback) {
   }
   document.body.appendChild(window);
 }
-</script>
-<script>
+
 var MapLoader = {};
+
 MapLoader.width = 0;
 MapLoader.height = 0;
 MapLoader.loaded = false;
@@ -173,9 +181,9 @@ MapLoader.clear = function() {
   document.getElementById("map").innerHTML = "";
   MapLoader.loaded = false;
 }
-</script>
-<script>
+
 var EveLoader = {};
+
 EveLoader.events = [];
 EveLoader.units = {};
 EveLoader.currentEvent = -1;
@@ -576,9 +584,9 @@ EveLoader.Unit = function(data, x, y, img) {
     this.img.style.top = ((y-1)*32-1) + "px";
   }
 }
-</script>
-<script>
+
 var DataLoader = {}
+
 DataLoader.pilots = {};
 DataLoader.robots = {};
 
@@ -744,16 +752,16 @@ DataLoader.RobotData = function(data, begin, end) {
   for (var i=0; begin+c+6+i < end; i++) { // 技リスト？
   }
 }
-</script>
-<script>
+
 EveLoader.Sound = {};
+
 EveLoader.Sound.defaultPath = "Sound/";
+
 EveLoader.Sound.play = function(name) {
   var audio = new Audio(EveLoader.Sound.defaultPath + name);
   audio.play();
 }
-</script>
-<script>
+
 window.onload = function() {
   //var map_file = "SRCｻﾝﾌﾟﾙ.map";
   //var map_file = "Map/決戦！宇宙怪獣1話.map";
