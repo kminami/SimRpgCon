@@ -8,7 +8,7 @@
  * 
  *  http://nang.seesaa.net/
  * 
- *  Copyright (c) 2011-2012 Nang All rights reserved.
+ *  Copyright (c) 2011-2013 Nang
  * 
  *  available under the GNU General Public License version 2.
  */
@@ -416,6 +416,12 @@ EveLoader.execEvent = function() {
     } else if ( text = data[i].match(/^[ \t]*Center (.*) (.*)/) ) {
       // Centerçs
       MapLoader.center(text[1],text[2]);
+    } else if ( text = data[i].match(/^[ \t]*StartBGM (.*)/) ) {
+      // StartBGMçs
+      //var bgm = document.getElementById("bgm");
+      //bgm.style.display = "none";
+      //bgm.src = "Midi/" + text[1].trim();
+      //bgm.style.display = "block"; // TODO: redraw timing
     } else if ( text = data[i].match(/^[ \t]*PlaySound (.*)/) ) {
       // PlaySoundçs
       console.log("PlaySound " + text[1]);
@@ -783,7 +789,6 @@ img.teki {
 
 <div id="map" style="position:absolute; top:10px; left:10px; width:512px; height:512px; border:solid 1px; overflow:scroll;"></div>
 
-
 <div style="position:absolute; top:530px; left:10px; width:64px; height:64px; border:solid 1px;">
   <img id="icon" style="display:none;" />
 </div>
@@ -809,8 +814,11 @@ img.teki {
   </div>
 </div>
 
-<select size=10 id="event_list" style="position:absolute; top:530; left:530; width: 312px;">
+<select size=10 id="event_list" style="position:absolute; top:530px; left:530px; width: 312px;">
 </select>
+
+<!--<embed id="bgm" src="" loop="true" style="position:absolute; top:1px; left:850px;">-->
 
 </body>
 </html>
+
