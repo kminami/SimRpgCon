@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <!--
 /* 
- *  EveLoader 0.1.1
+ *  SimRpgCon 0.1.2
  * 
  *  http://nang.seesaa.net/
  * 
- *  Copyright (c) 2011-2013 Nang
+ *  Copyright (c) 2011-2015 Keisuke Minami
  * 
- *  Available under the GNU General Public License version 2 (GPLv2)
+ *  Available under the GNU General Public License version 3 (GPLv3)
  */
 -->
 <html>
@@ -90,7 +90,7 @@ Util.createDialog = function(q, a, callback) {
     dialog.appendChild( document.createElement("br") );
   }
   document.body.appendChild(dialog);
-}
+};
 
 var MapLoader = {};
 
@@ -534,7 +534,7 @@ EveLoader.checkUnit = function(x,y) {
     }
   }
   return true;
-}
+};
 
 EveLoader.showInfo = function (pilot) {
   var unit = this.units[pilot];
@@ -586,12 +586,12 @@ EveLoader.showInfo = function (pilot) {
   info_robot += '<span class="blue">移動力</span> ' + DataLoader.robots[ unit.name ].move + "<br />";
   info_robot += '<span class="blue">サイズ</span> ' + DataLoader.robots[ unit.name ].size;
   document.getElementById("info_robot3").innerHTML = info_robot;
-}
+};
 
 EveLoader.EventData = function(name,begin) {
   this.name = name;
   this.begin = begin;
-}
+};
 
 EveLoader.Unit = function(data, x, y, img) {
   this.belong = data[1];
@@ -639,7 +639,7 @@ DataLoader.open = function(dir, callback) {
       getRobot();
     });
   });
-}
+};
 
 DataLoader.parsePilotData = function(data) {
   var begin = 0, end = 0, current_name = "";
@@ -652,7 +652,7 @@ DataLoader.parsePilotData = function(data) {
       this.pilots[ current_name ] = new this.PilotData(data, begin, end);
     }
   }
-}
+};
 
 DataLoader.parseNonPilotData = function(data) {
   var begin = 0, end = 0, current_name = "";
@@ -665,7 +665,7 @@ DataLoader.parseNonPilotData = function(data) {
       this.pilots[ current_name ] = new this.NonPilotData(data, begin, end);
     }
   }
-}
+};
 
 DataLoader.parseRobotData = function(data) {
   var begin = 0, end = 0, current_name = "";
@@ -779,7 +779,7 @@ DataLoader.RobotData = function(data, begin, end) {
   this.icon = temp[1].trim();
   for (var i=0; begin+c+6+i < end; i++) { // 技リスト？
   }
-}
+};
 
 EveLoader.Sound = {};
 
@@ -788,7 +788,7 @@ EveLoader.Sound.defaultPath = "Sound/";
 EveLoader.Sound.play = function(name) {
   var audio = new Audio(this.defaultPath + name);
   audio.play();
-}
+};
 
 var TerrainLoader = {};
 
