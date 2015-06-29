@@ -54,7 +54,13 @@ Util.ajax = function(file, callback, error_callback) {
       error_callback();
     }
   }
-}
+};
+
+Util.ajaxPromise = function (file) {
+  return new Promise(function (resolve, reject) {
+    Util.ajax(file, resolve, reject);
+  });
+};
 
 Util.createDialog = function(q, a, callback) {
   var dialog = document.createElement("div");
@@ -90,29 +96,9 @@ var MapLoader = {};
 
 MapLoader.width = 0;
 MapLoader.height = 0;
+MapLoader.data = [];
 MapLoader.loaded = false;
 MapLoader.defaultPath = "Bitmap/Map/";
-MapLoader.mapType = {
-  0: "plain",
-  1: "sand",
-  2: "road",
-  5: "space",
-  6: "earth",
-  10:"waste_land",
-  11:"woods",
-  12:"asteroids",
-  17:"sea",
-  19:"river",
-  21:"town",
-  22:"building",
-  23:"skyscraper",
-  26:"desert",
-  30:"slope",
-  32:"bush",
-  33:"base",
-  34:"laboratory",
-  38:"cliff"
-};
 
 MapLoader.open = function(path, file, callback) {
   var self = this;
@@ -128,7 +114,7 @@ MapLoader.open = function(path, file, callback) {
       callback();
     }
   });
-}
+};
 
 MapLoader.parseMapData = function(data, path) {
   if (data[0] !== '"MapData"') {
@@ -137,19 +123,23 @@ MapLoader.parseMapData = function(data, path) {
   }
   this.height = data[2].split(",")[0];
   this.width = data[2].split(",")[1];
+  this.data = [];
 
   for (var x = 0; x < this.width; x++) {
+    this.data[x] = [];
     for (var y = 0; y < this.height; y++) {
-      this.putMapChip(x, y, data[3+this.height*x+y].split(","), path);
+      this.data[x][y] = data[3+MapLoader.height*x+y].split(",");
+      this.putMapChip( x, y, this.data[x][y], path );
     }
   }
-}
+};
 
 MapLoader.putMapChip = function(x, y, data, path) {
   var type = data[0];
   var num = data[1];
   var src;
-  if(!this.mapType.hasOwnProperty(type)) {
+  var tdl = EveLoader.tdl;
+  if (!tdl[type]) {
     alert("unknown map type: " + type);
     return;
   }
@@ -162,7 +152,7 @@ MapLoader.putMapChip = function(x, y, data, path) {
     } else if(num < 1000) {
       num = "-0" + num;
     }
-    src = path + "bitmap/Map/" + this.mapType[type] + num + ".bmp";
+    src = path + "bitmap/Map/" + tdl[type].bitmap + num + ".bmp";
   } else {
     if (num < 10) {
       num = "000" + num;
@@ -171,7 +161,7 @@ MapLoader.putMapChip = function(x, y, data, path) {
     } else if(num < 1000) {
       num = "0" + num;
     }
-    src = this.defaultPath + this.mapType[type] + "/" + this.mapType[type] + num + ".bmp";
+    src = this.defaultPath + tdl[type].bitmap + "/" + tdl[type].bitmap + num + ".bmp";
   }
   var img = document.createElement("img");
   img.src = src;
@@ -179,18 +169,18 @@ MapLoader.putMapChip = function(x, y, data, path) {
   img.style.left = (x*32) + "px";
   img.style.top = (y*32) + "px";
   document.getElementById("map").appendChild(img);
-}
+};
 
 MapLoader.center = function(x,y) {
   var map = document.getElementById("map");
   map.scrollLeft = 32*(x-8);
   map.scrollTop = 32*(y-8);
-}
+};
 
 MapLoader.clear = function() {
   document.getElementById("map").innerHTML = "";
   this.loaded = false;
-}
+};
 
 var EveLoader = {};
 
@@ -215,7 +205,7 @@ EveLoader.initialize = function() {
   this.eveNest = [ {type:"Root",context:0} ]; // ダミー
   this.flags = {};
   this.vars = {};
-}
+};
 
 EveLoader.open = function(file) {
   var self = this;
@@ -227,7 +217,7 @@ EveLoader.open = function(file) {
     self.eveName = text[2];
     self.parseEveData();
   });
-}
+};
 
 EveLoader.parseEveData = function() {
   var self = this;
@@ -254,7 +244,7 @@ EveLoader.parseEveData = function() {
   }
   document.getElementById("event_list").innerHTML = select;
   self.launch("プロローグ");
-}
+};
 
 EveLoader.launch = function(name) {
   for (var i=0; i < this.events.length; i++) {
@@ -267,7 +257,7 @@ EveLoader.launch = function(name) {
     }
   }
   alert(name + " ラベル が見つかりませんでした。");
-}
+};
 
 EveLoader.execEvent = function() {
   var self = this;
@@ -502,7 +492,7 @@ EveLoader.execEvent = function() {
       }
     }
   }
-}
+};
 
 EveLoader.evalIf = function(text) {
   var split_text = text.split(" ");
@@ -530,7 +520,7 @@ EveLoader.evalIf = function(text) {
     return not;
   }
 //  return true;
-}
+};
 
 EveLoader.checkUnit = function(x,y) {
   if ( x<1 || x>MapLoader.width || y<1 || y>MapLoader.height ) {
@@ -546,7 +536,7 @@ EveLoader.checkUnit = function(x,y) {
   return true;
 }
 
-EveLoader.showInfo = function(pilot) {
+EveLoader.showInfo = function (pilot) {
   var unit = this.units[pilot];
   var img = document.getElementById("info_icon");
   img.src = this.evePath + "bitmap/pilot/" + DataLoader.pilots[ pilot ].icon;
@@ -572,18 +562,30 @@ EveLoader.showInfo = function(pilot) {
   info_pilot3 += "";
   document.getElementById("info_pilot3").innerHTML = info_pilot3;
   var info_robot = unit.name + "<br />";
-  info_robot += "xx (x x+xx% x+xx%)<br />"; // 地形
-  info_robot += '<span class="blue">ＨＰ</span> ' + DataLoader.robots[ unit.name ].hp + "/" + DataLoader.robots[ unit.name ].hp + "<br />";
+  // 地形
+  var td = EveLoader.tdl[MapLoader.data[unit.x][unit.y][0]];
+  info_robot += "xx (" + td.name;
+  if (td.hitMod === td.damageMod) {
+    info_robot += ' 回＆防' + (td.hitMod>=0?'+':'') + td.hitMod + '%';
+  } else {
+    info_robot += ' 回' + (td.hitMod>=0?'+':'') + td.hitMod + '%';
+    info_robot += ' 防' + (td.damageMod>=0?'+':'') + td.damageMod + '%';
+  }
+  for (var i=0; i<td.features.length; i++) {
+    info_robot += ' ' + td.features[i];
+  }
+  info_robot += ")";
+  document.getElementById("info_robot").innerHTML = info_robot;
+  info_robot = '<span class="blue">ＨＰ</span> ' + DataLoader.robots[ unit.name ].hp + "/" + DataLoader.robots[ unit.name ].hp + "<br />";
   info_robot += '<span class="blue">ＥＮ</span> ' + DataLoader.robots[ unit.name ].en + "/" + DataLoader.robots[ unit.name ].en + "<br />";
   info_robot += '<span class="blue">装甲</span> ' + DataLoader.robots[ unit.name ].armour + "<br />";
   info_robot += '<span class="blue">タイプ</span> ' + DataLoader.robots[ unit.name ].move_type + "<br />";
   info_robot += '<span class="blue">適応</span> ' + DataLoader.robots[ unit.name ].aaaa;
-  document.getElementById("info_robot").innerHTML = info_robot;
-  var info_robot2 = "<br /><br /><br /><br />";
-  info_robot2 += '<span class="blue">運動性</span> ' + DataLoader.robots[ unit.name ].sport + "<br />"; // 以下、装備や改造で変わると思われる
-  info_robot2 += '<span class="blue">移動力</span> ' + DataLoader.robots[ unit.name ].move + "<br />";
-  info_robot2 += '<span class="blue">サイズ</span> ' + DataLoader.robots[ unit.name ].size;
-  document.getElementById("info_robot2").innerHTML = info_robot2;
+  document.getElementById("info_robot2").innerHTML = info_robot;
+  info_robot = '<span class="blue">運動性</span> ' + DataLoader.robots[ unit.name ].sport + "<br />"; // 以下、装備や改造で変わると思われる
+  info_robot += '<span class="blue">移動力</span> ' + DataLoader.robots[ unit.name ].move + "<br />";
+  info_robot += '<span class="blue">サイズ</span> ' + DataLoader.robots[ unit.name ].size;
+  document.getElementById("info_robot3").innerHTML = info_robot;
 }
 
 EveLoader.EventData = function(name,begin) {
@@ -608,7 +610,7 @@ EveLoader.Unit = function(data, x, y, img) {
     this.img.style.left = ((x-1)*32-1) + "px";
     this.img.style.top = ((y-1)*32-1) + "px";
   }
-}
+};
 
 var DataLoader = {}
 
@@ -676,7 +678,7 @@ DataLoader.parseRobotData = function(data) {
       this.robots[ current_name ] = new this.RobotData(data, begin, end);
     }
   }
-}
+};
 
 DataLoader.PilotData = function(data, begin, end) {
   this.name = data[begin];
@@ -710,7 +712,7 @@ DataLoader.PilotData = function(data, begin, end) {
     for (var i=0; begin+c+7+i < end; i++) { // ユニット用特殊能力
     }
   }
-}
+};
 
 DataLoader.Ability = function(data) {
   var st,mt;
@@ -737,7 +739,7 @@ DataLoader.Ability = function(data) {
     var mt = data[(i-1)*2].match(/Lv\d+/);
     return this.name + mt[0];
   }
-}
+};
 
 DataLoader.NonPilotData = function(data, begin, end) {
   this.name = data[begin];
@@ -749,7 +751,7 @@ DataLoader.NonPilotData = function(data, begin, end) {
   this.hp = "";
   this.icon = data[begin+1].split(",")[1].trim();
   this.bgm = "";
-}
+};
 
 DataLoader.RobotData = function(data, begin, end) {
   this.name = data[begin]; // line0
@@ -788,17 +790,76 @@ EveLoader.Sound.play = function(name) {
   audio.play();
 }
 
-window.onload = function() {
-  //var map_file = "SRCｻﾝﾌﾟﾙ.map";
-  //var map_file = "Map/決戦！宇宙怪獣1話.map";
-  //var map_file = "Map/決戦！宇宙怪獣2話.map";
-  //var map_file = "Map/決戦！宇宙怪獣3話.map";
-  //MapLoader.open("サンプルシナリオ/", map_file );
+var TerrainLoader = {};
 
-  var eve_file = "サンプルシナリオ/SRCｻﾝﾌﾟﾙ.eve";
-  //var eve_file = "サンプルシナリオ/決戦！宇宙怪獣1話.eve";
-  //var eve_file = "サンプルシナリオ/決戦！宇宙怪獣2話.eve";
-  EveLoader.open(eve_file);
+TerrainLoader.open = function (fname) {
+  return Util.ajaxPromise(fname)
+  .then(function(d) {
+    console.log("success");
+    var tdl = {}, td, data;
+    var lines = d.split('\r\n');
+    for (var i=0; i<lines.length; i++) {
+      var line = lines[i];
+      if (line.length === 0) continue; // 空行
+      if (line[0] === '#') continue; // コメント行
+      if (!line.match(/^\d+$/)) return Promise.reject('must be number');
+      // 番号
+      var dataId = line;
+      td = {id: dataId};
+      tdl[dataId] = td;
+      // 名称, 画像ファイル名
+      line = lines[++i];
+      data = line.split(',');
+      td.name = data[0].trim();
+      td.bitmap = data[1].trim();
+      // 地形タイプ, 移動コスト, 命中修正, ダメージ修正
+      line = lines[++i];
+      data = line.split(',');
+      td.class = data[0].trim();
+      td.moveCost = data[1].trim();
+      td.hitMod = data[2].trim();
+      td.damageMod = data[3].trim();
+      // 地形効果
+      td.features = [];
+      for (i++; i<lines.length; i++) {
+        line = lines[i];
+        if (line.length === 0) break;
+        td.features.push(line);
+      }
+    }
+    return Promise.resolve(tdl);
+  }, function (e) {
+    console.log("error");
+    return Promise.reject(e);
+  });
+};
+
+var SimRpgCon = function () {};
+
+SimRpgCon.prototype.start = function () {
+  var self = this;
+
+  TerrainLoader.open("Data/System/terrain.txt")
+  .then(function (tdl) {
+    self.tdl = tdl;
+    
+    //var map_file = "SRCｻﾝﾌﾟﾙ.map";
+    //var map_file = "Map/決戦！宇宙怪獣1話.map";
+    //var map_file = "Map/決戦！宇宙怪獣2話.map";
+    //var map_file = "Map/決戦！宇宙怪獣3話.map";
+    //MapLoader.open("サンプルシナリオ/", map_file );
+
+    var eve_file = "サンプルシナリオ/SRCｻﾝﾌﾟﾙ.eve";
+    //var eve_file = "サンプルシナリオ/決戦！宇宙怪獣1話.eve";
+    //var eve_file = "サンプルシナリオ/決戦！宇宙怪獣2話.eve";
+    EveLoader.tdl = self.tdl; // TODO:
+    EveLoader.open(eve_file);
+  });
+};
+
+window.onload = function() {
+  var src = new SimRpgCon();
+  src.start();
 };
 </script>
 <style>
@@ -841,10 +902,11 @@ img.teki {
     <span id="info_pilot2" style="width:150px; float:left;"></span>
     <span id="info_pilot3" style="width:150px; float:left;"></span>
   </div>
-  <br style="clear:both;" />
-  <div style="margin-top:20px;">
-    <span id="info_robot" style="width:150px; float:left;"></span>
+  <br style="clear:both;" /><br>
+  <span id="info_robot"></span>
+  <div>
     <span id="info_robot2" style="width:150px; float:left;"></span>
+    <span id="info_robot3" style="width:150px; float:left;"></span>
   </div>
 </div>
 
