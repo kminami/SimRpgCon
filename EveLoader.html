@@ -83,27 +83,6 @@ MapLoader.height = 0;
 MapLoader.data = [];
 MapLoader.loaded = false;
 MapLoader.defaultPath = "Bitmap/Map/";
-MapLoader.mapType = {
-  0: "plain",
-  1: "sand",
-  2: "road",
-  5: "space",
-  6: "earth",
-  10:"waste_land",
-  11:"woods",
-  12:"asteroids",
-  17:"sea",
-  19:"river",
-  21:"town",
-  22:"building",
-  23:"skyscraper",
-  26:"desert",
-  30:"slope",
-  32:"bush",
-  33:"base",
-  34:"laboratory",
-  38:"cliff"
-};
 
 MapLoader.open = function(path, file, callback) {
   MapLoader.clear();
@@ -142,7 +121,8 @@ MapLoader.putMapChip = function( x, y, data, path ) {
   var type = data[0];
   var num = data[1];
   var src;
-  if(MapLoader.mapType[type] == undefined) {
+  var tdl = EveLoader.tdl;
+  if (!tdl[type]) {
     alert("unknown map type: " + type);
     return;
   }
@@ -155,7 +135,7 @@ MapLoader.putMapChip = function( x, y, data, path ) {
     } else if(num < 1000) {
       num = "-0" + num;
     }
-    src = path + "bitmap/Map/" + MapLoader.mapType[type] + num + ".bmp";
+    src = path + "bitmap/Map/" + tdl[type].bitmap + num + ".bmp";
   } else {
     if (num < 10) {
       num = "000" + num;
@@ -164,7 +144,7 @@ MapLoader.putMapChip = function( x, y, data, path ) {
     } else if(num < 1000) {
       num = "0" + num;
     }
-    src = MapLoader.defaultPath + MapLoader.mapType[type] + "/" + MapLoader.mapType[type] + num + ".bmp";
+    src = MapLoader.defaultPath + tdl[type].bitmap + "/" + tdl[type].bitmap + num + ".bmp";
   }
   var img = document.createElement("img");
   img.src = src;
@@ -561,18 +541,18 @@ EveLoader.showInfo = function (pilot) {
   for (var i=0; i<td.features.length; i++) {
     info_robot += ' ' + td.features[i];
   }
-  info_robot += ")<br>";
-  info_robot += '<span class="blue">ＨＰ</span> ' + DataLoader.robots[ unit.name ].hp + "/" + DataLoader.robots[ unit.name ].hp + "<br />";
+  info_robot += ")";
+  document.getElementById("info_robot").innerHTML = info_robot;
+  info_robot = '<span class="blue">ＨＰ</span> ' + DataLoader.robots[ unit.name ].hp + "/" + DataLoader.robots[ unit.name ].hp + "<br />";
   info_robot += '<span class="blue">ＥＮ</span> ' + DataLoader.robots[ unit.name ].en + "/" + DataLoader.robots[ unit.name ].en + "<br />";
   info_robot += '<span class="blue">装甲</span> ' + DataLoader.robots[ unit.name ].armour + "<br />";
   info_robot += '<span class="blue">タイプ</span> ' + DataLoader.robots[ unit.name ].move_type + "<br />";
   info_robot += '<span class="blue">適応</span> ' + DataLoader.robots[ unit.name ].aaaa;
-  document.getElementById("info_robot").innerHTML = info_robot;
-  var info_robot2 = "<br /><br /><br /><br />";
-  info_robot2 += '<span class="blue">運動性</span> ' + DataLoader.robots[ unit.name ].sport + "<br />"; // 以下、装備や改造で変わると思われる
-  info_robot2 += '<span class="blue">移動力</span> ' + DataLoader.robots[ unit.name ].move + "<br />";
-  info_robot2 += '<span class="blue">サイズ</span> ' + DataLoader.robots[ unit.name ].size;
-  document.getElementById("info_robot2").innerHTML = info_robot2;
+  document.getElementById("info_robot2").innerHTML = info_robot;
+  info_robot = '<span class="blue">運動性</span> ' + DataLoader.robots[ unit.name ].sport + "<br />"; // 以下、装備や改造で変わると思われる
+  info_robot += '<span class="blue">移動力</span> ' + DataLoader.robots[ unit.name ].move + "<br />";
+  info_robot += '<span class="blue">サイズ</span> ' + DataLoader.robots[ unit.name ].size;
+  document.getElementById("info_robot3").innerHTML = info_robot;
 }
 
 EveLoader.EventData = function(name,begin) {
@@ -778,46 +758,44 @@ EveLoader.Sound.play = function(name) {
 <script>
 var TerrainLoader = {};
 TerrainLoader.open = function (fname) {
-  return new Promise(function(resolve, reject) {
-    Util.ajaxPromise(fname)
-    .then(function(d) {
-      console.log("success");
-      var tds = {}, td, data;
-      var lines = d.split('\r\n');
-      for (var i=0; i<lines.length; i++) {
-        var line = lines[i];
-        if (line.length === 0) continue; // 空行
-        if (line[0] === '#') continue; // コメント行
-        if (!line.match(/^\d+$/)) reject('must be number');
-        // 番号
-        var dataId = line;
-        td = {id: dataId};
-        tds[dataId] = td;
-        // 名称, 画像ファイル名
-        line = lines[++i];
-        data = line.split(',');
-        td.name = data[0].trim();
-        td.bitmap = data[1].trim();
-        // 地形タイプ, 移動コスト, 命中修正, ダメージ修正
-        line = lines[++i];
-        data = line.split(',');
-        td.class = data[0].trim();
-        td.moveCost = data[1].trim();
-        td.hitMod = data[2].trim();
-        td.damageMod = data[3].trim();
-        // 地形効果
-        td.features = [];
-        for (i++; i<lines.length; i++) {
-          line = lines[i];
-          if (line.length === 0) break;
-          td.features.push(line);
-        }
+  return Util.ajaxPromise(fname)
+  .then(function(d) {
+    console.log("success");
+    var tdl = {}, td, data;
+    var lines = d.split('\r\n');
+    for (var i=0; i<lines.length; i++) {
+      var line = lines[i];
+      if (line.length === 0) continue; // 空行
+      if (line[0] === '#') continue; // コメント行
+      if (!line.match(/^\d+$/)) return Promise.reject('must be number');
+      // 番号
+      var dataId = line;
+      td = {id: dataId};
+      tdl[dataId] = td;
+      // 名称, 画像ファイル名
+      line = lines[++i];
+      data = line.split(',');
+      td.name = data[0].trim();
+      td.bitmap = data[1].trim();
+      // 地形タイプ, 移動コスト, 命中修正, ダメージ修正
+      line = lines[++i];
+      data = line.split(',');
+      td.class = data[0].trim();
+      td.moveCost = data[1].trim();
+      td.hitMod = data[2].trim();
+      td.damageMod = data[3].trim();
+      // 地形効果
+      td.features = [];
+      for (i++; i<lines.length; i++) {
+        line = lines[i];
+        if (line.length === 0) break;
+        td.features.push(line);
       }
-      resolve(tds);
-    }, function (e) {
-      console.log("error");
-      reject(e);
-    });
+    }
+    return Promise.resolve(tdl);
+  }, function (e) {
+    console.log("error");
+    return Promise.reject(e);
   });
 };
 </script>
@@ -892,10 +870,11 @@ img.teki {
     <span id="info_pilot2" style="width:150px; float:left;"></span>
     <span id="info_pilot3" style="width:150px; float:left;"></span>
   </div>
-  <br style="clear:both;" />
-  <div style="margin-top:20px;">
-    <span id="info_robot" style="width:150px; float:left;"></span>
+  <br style="clear:both;" /><br>
+  <span id="info_robot"></span>
+  <div>
     <span id="info_robot2" style="width:150px; float:left;"></span>
+    <span id="info_robot3" style="width:150px; float:left;"></span>
   </div>
 </div>
 
